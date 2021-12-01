@@ -368,6 +368,10 @@ public class MySqlSnapshotChangeEventSource extends RelationalSnapshotChangeEven
             if (firstPhase && delayedSchemaSnapshotTables.contains(tableId)) {
                 continue;
             }
+            System.out.printf("tableId: %s\n", tableId.toString());
+            if (tableId.toString().equals("console.trigger_log")) {
+                continue;
+            }
             connection.query("SHOW CREATE TABLE " + quote(tableId), rs -> {
                 if (rs.next()) {
                     addSchemaEvent(snapshotContext, tableId.catalog(), rs.getString(2));

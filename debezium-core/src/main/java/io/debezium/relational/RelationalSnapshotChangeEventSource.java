@@ -96,7 +96,7 @@ public abstract class RelationalSnapshotChangeEventSource<P extends Partition, O
                 LOGGER.info("Previous snapshot was cancelled before completion; a new snapshot will be taken.");
             }
 
-            connection = createSnapshotConnection();
+            connection = createSnapshotConnection(); // 修改了autocommit=false相当于开启了事务
             connectionCreated(ctx);
 
             LOGGER.info("Snapshot step 2 - Determining captured tables");
@@ -124,7 +124,7 @@ public abstract class RelationalSnapshotChangeEventSource<P extends Partition, O
                 createSchemaChangeEventsForTables(context, ctx, snapshottingTask);
 
                 // if we've been interrupted before, the TX rollback will cause any locks to be released
-                releaseSchemaSnapshotLocks(ctx);
+                releaseSchemaSnapshotLocks(ctx); // 释放了globalLock
             }
             else {
                 LOGGER.info("Snapshot step 6 - Skipping persisting of schema history");
@@ -132,6 +132,7 @@ public abstract class RelationalSnapshotChangeEventSource<P extends Partition, O
 
             if (snapshottingTask.snapshotData()) {
                 LOGGER.info("Snapshot step 7 - Snapshotting data");
+                // select已有数据
                 createDataEvents(context, ctx);
             }
             else {
@@ -146,7 +147,7 @@ public abstract class RelationalSnapshotChangeEventSource<P extends Partition, O
             return SnapshotResult.completed(ctx.offset);
         }
         finally {
-            rollbackTransaction(connection);
+            rollbackTransaction(connection); // 回滚所有操作(全局锁会释放吗???)
         }
     }
 

@@ -98,11 +98,13 @@ public class MySqlSnapshotChangeEventSource extends RelationalSnapshotChangeEven
         return new SnapshottingTask(snapshotSchema, snapshotData);
     }
 
+    // 覆写io.debezium.pipeline.source.AbstractSnapshotChangeEventSource.prepare
     @Override
     protected SnapshotContext<MySqlPartition, MySqlOffsetContext> prepare(MySqlPartition partition) throws Exception {
         return new MySqlSnapshotContext(partition);
     }
 
+    // 覆写io.debezium.relational.RelationalSnapshotChangeEventSource.connectionCreated
     @Override
     protected void connectionCreated(RelationalSnapshotContext<MySqlPartition, MySqlOffsetContext> snapshotContext)
             throws Exception {
@@ -155,6 +157,7 @@ public class MySqlSnapshotChangeEventSource extends RelationalSnapshotChangeEven
         return tableIds;
     }
 
+    // 覆写io.debezium.relational.RelationalSnapshotChangeEventSource.lockTablesForSchemaSnapshot
     @Override
     protected void lockTablesForSchemaSnapshot(ChangeEventSourceContext sourceContext,
                                                RelationalSnapshotContext<MySqlPartition, MySqlOffsetContext> snapshotContext)

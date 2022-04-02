@@ -209,6 +209,7 @@ public class MySqlSnapshotChangeEventSource extends RelationalSnapshotChangeEven
                 globalUnlock();
             }
             if (isTablesLocked()) {
+                // tableLock不会被释放
                 // We could not acquire a global read lock and instead had to obtain individual table-level read locks
                 // using 'FLUSH TABLE <tableName> WITH READ LOCK'. However, if we were to do this, the 'UNLOCK TABLES'
                 // would implicitly commit our active transaction, and this would break our consistent snapshot logic.

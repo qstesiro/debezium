@@ -113,6 +113,7 @@ public abstract class RelationalSnapshotChangeEventSource<P extends Partition, O
             }
 
             LOGGER.info("Snapshot step 4 - Determining snapshot offset");
+            // 无论是何种snapshot.locking.mode偏移与后续的数据处理之间有并发问题 ???
             determineSnapshotOffset(ctx, previousOffset);
 
             LOGGER.info("Snapshot step 5 - Reading structure of captured tables");
@@ -133,6 +134,7 @@ public abstract class RelationalSnapshotChangeEventSource<P extends Partition, O
             if (snapshottingTask.snapshotData()) {
                 LOGGER.info("Snapshot step 7 - Snapshotting data");
                 // select已有数据
+                // 内部调用releaseDataSnapshotLocks
                 createDataEvents(context, ctx);
             }
             else {
@@ -147,7 +149,9 @@ public abstract class RelationalSnapshotChangeEventSource<P extends Partition, O
             return SnapshotResult.completed(ctx.offset);
         }
         finally {
-            rollbackTransaction(connection); // 回滚所有操作(全局锁会释放吗???)
+            // 回滚所有操作
+            // flush tables [xxx] with read lock不会因为rollback释放,必须显示调用unlock tables
+            rollbackTransaction(connection);
         }
     }
 

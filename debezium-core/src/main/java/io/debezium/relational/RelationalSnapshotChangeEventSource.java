@@ -109,14 +109,19 @@ public abstract class RelationalSnapshotChangeEventSource<P extends Partition, O
             LOGGER.info("Snapshot step 3 - Locking captured tables {}", ctx.capturedTables);
 
             if (snapshottingTask.snapshotSchema()) {
+                // 如果可以会在此步骤中获取globalLock
+                // 如果没有权限或是锁等待超时会在step 5中尝试获取tableLock
                 lockTablesForSchemaSnapshot(context, ctx);
             }
 
             LOGGER.info("Snapshot step 4 - Determining snapshot offset");
-            // 无论是何种snapshot.locking.mode偏移与后续的数据处理之间有并发问题 ???
+            // 注意: snapshot.locking.mode ???
+            // minimal 'step 6'执行完成后与'step 7'被执行之间的一个写操作会触发r与dml两个操作
+            // none    'step 4'执行完成后与'step 7'被执行之间的一个写操作会触发r与dml两个操作
             determineSnapshotOffset(ctx, previousOffset);
 
             LOGGER.info("Snapshot step 5 - Reading structure of captured tables");
+            // 如果不能获取全局锁或锁等待超时会在此步骤中尝试tableLock
             readTableStructure(context, ctx, previousOffset);
 
             if (snapshottingTask.snapshotSchema()) {
@@ -150,7 +155,7 @@ public abstract class RelationalSnapshotChangeEventSource<P extends Partition, O
         }
         finally {
             // 回滚所有操作
-            // flush tables [xxx] with read lock不会因为rollback释放,必须显示调用unlock tables
+            // flush tables [xxx] with read lock不会因为rollback释放,必须调用unlock tables
             rollbackTransaction(connection);
         }
     }

@@ -3,7 +3,7 @@
     mvn clean package -DskipITs -DskipTests
     mvn package -pl debezium-connector-mysql -am -DskipITs -DskipTests
 
-    mvn compile install -pl debezium-core -Dquick
+    mvn compile install -pl debezium-core -pl debezium-connector-mysql -Dquick
     mvn compile install -pl debezium-connector-mysql -Dquick
 }
 

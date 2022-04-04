@@ -191,6 +191,12 @@ public class MySqlSnapshotChangeEventSource extends RelationalSnapshotChangeEven
             }
             catch (SQLException e) {
                 LOGGER.info("Unable to flush and acquire global read lock, will use table read locks after reading table names");
+                if (e.getErrorCode() == 1205) {
+                    // 超时的情况下如果不显示执行'unlock tables'会导致所有库与表不能进行写操作
+                    // 这可能是mysql的bug
+                    // https://jira.mariadb.org/browse/MDEV-17350
+                    connection.executeWithoutCommitting("UNLOCK TABLES");
+                }
                 // Continue anyway, since RDS (among others) don't allow setting a global lock
                 assert !isGloballyLocked();
             }
@@ -209,7 +215,7 @@ public class MySqlSnapshotChangeEventSource extends RelationalSnapshotChangeEven
                 globalUnlock();
             }
             if (isTablesLocked()) {
-                // tableLock不会被释放
+                // 如果使用tableLock的情况是不会被释放
                 // We could not acquire a global read lock and instead had to obtain individual table-level read locks
                 // using 'FLUSH TABLE <tableName> WITH READ LOCK'. However, if we were to do this, the 'UNLOCK TABLES'
                 // would implicitly commit our active transaction, and this would break our consistent snapshot logic.
@@ -263,6 +269,8 @@ public class MySqlSnapshotChangeEventSource extends RelationalSnapshotChangeEven
     protected void determineSnapshotOffset(RelationalSnapshotContext<MySqlPartition, MySqlOffsetContext> ctx,
                                            MySqlOffsetContext previousOffset)
             throws Exception {
+        // 获取到'global lock'的情况会触发以下条件
+        // 'binlog offset'的定位会在获取到表锁后再处理
         if (!isGloballyLocked() && !isTablesLocked() && connectorConfig.getSnapshotLockingMode().usesLocking()) {
             return;
         }
@@ -314,6 +322,9 @@ public class MySqlSnapshotChangeEventSource extends RelationalSnapshotChangeEven
         if (twoPhaseSchemaSnapshot()) {
             // Capture schema of captured tables after they are locked
             tableLock(snapshotContext);
+            // 注意:
+            // 在使用表锁的情况下先获取表锁再定位'binlog offset'
+            // 所以不存在'global lock'与'none lock'存在的问题
             determineSnapshotOffset(snapshotContext, offsetContext);
             capturedSchemaTables = snapshotContext.capturedTables;
             LOGGER.info("Table level locking is in place, the schema will be capture in two phases, now capturing: {}", capturedSchemaTables);
